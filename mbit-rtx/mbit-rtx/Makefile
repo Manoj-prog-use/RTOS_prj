@@ -21,15 +21,27 @@ LIBS = bsp/libbsp.a bsp2/libbsp2.a rtx/librtx.a #Where to pick up the defination
 
 # Add standard libraries at the very end of the linker input, after all objects
 # that may need symbols provided by these libraries.
-LIBS += $(GCCARM)/arm-none-eabi/lib/thumb/v7e-m+fp/hard/libm.a
-LIBS += $(GCCARM)/arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc.a
-LIBS += $(GCCARM)/lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/libgcc.a
+# LIBS += $(GCCARM)/arm-none-eabi/lib/thumb/v7e-m+fp/hard/libm.a
+# LIBS += $(GCCARM)/arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc.a
+# LIBS += $(GCCARM)/lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/libgcc.a
+
+LIBS += /opt/arm-gcc/arm-none-eabi/lib/thumb/v7e-m+fp/hard/libm.a
+LIBS += /opt/arm-gcc/arm-none-eabi/lib/thumb/v7e-m+fp/hard/libc.a
+LIBS += /opt/arm-gcc/lib/gcc/arm-none-eabi/14.2.1/thumb/v7e-m+fp/hard/libgcc.a
 
 LDFLAGS = -T $(LINKER_SCRIPT) -Map system.map --entry Reset_Handler
 
+# flash: $(TARGET).hex
+# 	cp $(TARGET).hex /mnt/c/Temp
+# 	(cd /mnt/c/Temp && cmd.exe /c copy $(TARGET).hex E:)
+
 flash: $(TARGET).hex
-	cp $(TARGET).hex /mnt/c/Temp
-	(cd /mnt/c/Temp && cmd.exe /c copy $(TARGET).hex E:)
+	sudo mkdir -p /mnt/MICROBIT             # create if doesn't exist
+	sudo mount -t drvfs E: /mnt/MICROBIT
+	sudo /bin/cp $(TARGET).hex /mnt/MICROBIT
+	sudo umount /mnt/MICROBIT
+
+
 
 $(TARGET).hex: $(TARGET).out
 	$(OBJCOPY) -O ihex $< $@

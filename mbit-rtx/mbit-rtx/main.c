@@ -5,6 +5,7 @@
  #include "bsp2.h"
 #include "cmsis_os2.h"
 #include "cross_team_definitions.h"
+#include "motor.h"
 
 
 struct GESTURE_COMMAND_PACKET command_array[1000];
@@ -301,6 +302,23 @@ void PushGestureIntoQueue(struct GESTURE_COMMAND_PACKET _packet)
     }
     int led_button_number = _packet.rpm;
     led_on(led_button_number,led_button_number);
+
+    // Use rpm for speed (scale as needed)
+    int speed = _packet.rpm * 20; // scale 0-5 to 0-100
+
+    // Motor control based on command
+    switch (_packet.command) {
+        case FRONT:
+            motor_on(MOTOR_FORWARD, speed, MOTOR_FORWARD, speed);
+            break;
+        case BACK:
+            motor_on(MOTOR_REVERSE, speed, MOTOR_REVERSE, speed);
+            break;
+        default:
+            // Stop motors for unknown command
+            motor_off();
+            break;
+    }
 }
 
 void DispatchCommand(enum COMMAND_TYPE _commandType, void* data )

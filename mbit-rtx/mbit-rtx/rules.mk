@@ -1,10 +1,18 @@
-GCCARM=/opt/arm-gcc
-CC=arm-none-eabi-gcc
-AS=arm-none-eabi-as
-LD=arm-none-eabi-ld
-AR=arm-none-eabi-ar
-OBJCOPY=arm-none-eabi-objcopy
-SIZE=arm-none-eabi-size
+# GCCARM=/opt/arm-gcc
+# CC=arm-none-eabi-gcc
+# AS=arm-none-eabi-as
+# LD=arm-none-eabi-ld
+# AR=arm-none-eabi-ar
+# OBJCOPY=arm-none-eabi-objcopy
+# SIZE=arm-none-eabi-size
+
+GCCARM=/opt/arm-gcc/bin
+CC=$(GCCARM)/arm-none-eabi-gcc
+AS=$(GCCARM)/arm-none-eabi-as
+LD=$(GCCARM)/arm-none-eabi-ld
+AR=$(GCCARM)/arm-none-eabi-ar
+OBJCOPY=$(GCCARM)/arm-none-eabi-objcopy
+SIZE=$(GCCARM)/arm-none-eabi-size
 
 # C flags common to all targets
 CFLAGS += -mcpu=cortex-m4 -mthumb -mabi=aapcs   # architecture-specific
