@@ -5,6 +5,7 @@
  #include "bsp2.h"
 #include "cmsis_os2.h"
 #include "cross_team_definitions.h"
+#include "accel.h"
 
 
 struct GESTURE_COMMAND_PACKET command_array[1000];
@@ -18,6 +19,9 @@ void DispatchGestureCommand(struct GESTURE_COMMAND_PACKET);
 // void DispatchDeactivateCommand(struct DEACTIVATE_COMMAND_PACKET);
 // void DispatchPathInfoDownloadCommand(struct PATH_INFO_DOWNLOAD);
 
+// At the top of your file with other global declarations
+osMessageQueueId_t gestureQueueId;
+void InitializeGestureQueue(void);
 
 
 
@@ -48,7 +52,7 @@ enum DEVICE_MODE thisDeviceMode;
 
 
 
-// // extern void uart_command_task(void *arg);
+// extern void uart_command_task(void *arg);
 
 // /* OS objects */
 // // osThreadId_t tid1, tid2;
@@ -205,7 +209,8 @@ enum DEVICE_MODE thisDeviceMode;
   radio_init(my_radio_callback);
 
 
-  communication_init(COMMANDER);
+  communication_init(EXPLORER);
+  LSM303AGR_Init(I2C_SCL, I2C_SDA);
 //     return;
  }
 
@@ -218,36 +223,44 @@ int main(void)
     printf("hello, world!\n");
     audio_sweep(100, 2000, 200);
 
+       osKernelInitialize();
+//    osThreadNew(uart_command_task, NULL, NULL);
+   // led_blink(1,1);
+   osKernelStart();
+   InitializeGestureQueue();
+    /* never returns */
+
+    led_blink(2, 2);
+
    int  led_button_number = 0;
+
+    if(thisDeviceMode == EXPLORER)
+    {
+        led_on(4,4);
+    }
+
     while(1)
     {
-        if(button_get(0) == 1 )
-        {
+
+
                 if(thisDeviceMode == COMMANDER)
                     {
+
+                        enum GESTURE_COMMAND g = compute_direction();
                         struct GESTURE_COMMAND_PACKET gcp;
-                        gcp.command = FRONT;
-                        gcp.rpm = led_button_number%5;
-                        led_button_number = led_button_number + 1;
+                        gcp.command = g%4;
+                        gcp.rpm = 60;
                         DispatchCommand(GESTURE,(void *)(&gcp));
+                        led_on(gcp.command,gcp.command);
                     }
-                    for (volatile int i=0;i<1000;++i){
-                        printf("%i\n",i);   
-                    };
-        }
+        
     }
     
     //while(1){};
 
 
     /* Initialize and start the kernel */
-//    osKernelInitialize();
-   // osThreadNew(uart_command_task, NULL, NULL);
-   // led_blink(1,1);
-//    osKernelStart();
-    /* never returns */
 
-    led_blink(2, 2);
 
     return 0;
 }
@@ -293,14 +306,23 @@ struct GESTURE_COMMAND_PACKET parseGesturePacket(const char buf[], unsigned int 
 
 void PushGestureIntoQueue(struct GESTURE_COMMAND_PACKET _packet)
 {
+     // Put the command into the RTOS queue
+    osStatus_t status = osMessageQueuePut(gestureQueueId, &_packet, 0, 0);
+    
+    if (status != osOK) {
+        // Failed to add to queue - handle error
+        printf("Failed to enqueue gesture command\n");
+    }
 
         for (int r = 0; r < LED_NUM_ROWS; r++) {
         for (int c = 0; c < LED_NUM_COLS; c++) {
             led_off(r,c);
         }
     }
-    int led_button_number = _packet.rpm;
+    int led_button_number = _packet.command;
     led_on(led_button_number,led_button_number);
+
+   
 }
 
 void DispatchCommand(enum COMMAND_TYPE _commandType, void* data )
@@ -365,3 +387,12 @@ void DispatchGestureCommand(struct GESTURE_COMMAND_PACKET gesture_cmd)
 }
 
 
+void InitializeGestureQueue(void) {
+    // Create a queue that can hold up to 16 gesture commands
+    gestureQueueId = osMessageQueueNew(30, sizeof(struct GESTURE_COMMAND_PACKET), NULL);
+    
+    if (gestureQueueId == NULL) {
+        // Queue creation failed - handle error
+        printf("Failed to create gesture command queue\n");
+    }
+}

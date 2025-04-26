@@ -1,3 +1,6 @@
+#ifndef CROSS_TEAM_DEFINITIONS_H
+#define CROSS_TEAM_DEFINITIONS_H
+
 enum COMMAND_TYPE
 {
     GESTURE,
@@ -14,6 +17,7 @@ enum GESTURE_COMMAND
     FRONT,
     RIGHT,
     BACK,
+    LEFT,
     ROTATE180,
     ACTIVATE_EXPLORER,
     
@@ -47,3 +51,4 @@ struct PATH_INFO_DOWNLOAD_COMMAND_PACKET
     int dummy_variable;
 };
 
+#endif CROSS_TEAM_DEFINITIONS_H
