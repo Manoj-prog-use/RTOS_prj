@@ -15,7 +15,7 @@ void calc_avg_Acc(){
     int y_avg = 0;
     int z_avg = 0;
 
-    for(int i=0;i<=10;i++){
+    for(int i=0;i<5;i++){
         LSM303AGR_AccReadXYZ(accel_values);
 
         x_avg += accel_values[0];
@@ -24,9 +24,15 @@ void calc_avg_Acc(){
         osDelay(10);
     }
 
-    avg_accel_values[0] = x_avg/10;
-    avg_accel_values[1] = y_avg/10;
-    avg_accel_values[2] = z_avg/10;
+    avg_accel_values[0] = x_avg/5;
+    avg_accel_values[1] = y_avg/5;
+    avg_accel_values[2] = z_avg/5;
+
+    printf("%d\r\n", avg_accel_values[0]);
+    printf("%d\r\n", avg_accel_values[1]);
+    printf("%d\r\n", avg_accel_values[2]);
+    printf("\r\n");
+
 }
 
 
@@ -43,7 +49,7 @@ int check_fwd() {
 int check_left() {
 
 
-    if (avg_accel_values[1] > 1000) {
+    if (avg_accel_values[2] > 1000) {
         return 1; // Forward detected
     } else {
         return 0; // Not forward
@@ -53,7 +59,7 @@ int check_left() {
 int check_right() {
 
 
-    if (avg_accel_values[1] > 1000) {
+    if (avg_accel_values[2] < -1000) {
         return 1; // Forward detected
     } else {
         return 0; // Not forward
@@ -63,7 +69,7 @@ int check_right() {
 int check_back() {
 
 
-    if (avg_accel_values[1] > 1000) {
+    if (avg_accel_values[1] < -1000) {
         return 1; // Forward detected
     } else {
         return 0; // Not forward
@@ -71,32 +77,11 @@ int check_back() {
 }
 
 
-int compute_direction(){
+int compute_direction() {
     calc_avg_Acc();
-    int fwd = check_fwd();
-    int right = check_right();
-    int back = check_back();
-    int left = check_left();
-    if(fwd==1 & right==0 & left == 0 & back ==0){
-        return FRONT;
-    } else if (fwd==0 & right==0 & left == 0 & back ==1)
-    {
-        return BACK;
-    }else if (fwd==0 & right==1 & left == 1 & back ==0)
-    {
-        return ROTATE180;
-    }else if (fwd==1 & right==1 & left == 0 & back ==0)
-    {
-        return RIGHT;
-    }else if (fwd==1 & right==0 & left == 1 & back ==0)
-    {
-        return LEFT;
-    }
-    
-    
-    
-    
-
-
-
+    if (check_fwd())   return FRONT;
+    if (check_back())  return BACK;
+    if (check_left())  return LEFT;
+    if (check_right()) return RIGHT;
+    return -1; //
 }
