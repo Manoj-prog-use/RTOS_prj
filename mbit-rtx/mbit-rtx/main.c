@@ -5,7 +5,8 @@
  #include "bsp2.h"
 #include "cmsis_os2.h"
 #include "cross_team_definitions.h"
-#include "accel.h"
+// #include "accel.h"
+// #include "motor.h"
 
 
 struct GESTURE_COMMAND_PACKET command_array[1000];
@@ -20,8 +21,10 @@ void DispatchGestureCommand(struct GESTURE_COMMAND_PACKET);
 // void DispatchPathInfoDownloadCommand(struct PATH_INFO_DOWNLOAD);
 
 // At the top of your file with other global declarations
-osMessageQueueId_t gestureQueueId;
+// osMessageQueueId_t gestureQueueId;
 void InitializeGestureQueue(void);
+void GestureQueueThread(void *argument);
+void ActOnGestureCommand(enum GESTURE_COMMAND gesture, int rpm);
 
 
 
@@ -211,6 +214,9 @@ enum DEVICE_MODE thisDeviceMode;
 
   communication_init(EXPLORER);
   LSM303AGR_Init(I2C_SCL, I2C_SDA);
+  motor_init( M1A,  M1B,  M2A,  M2B);
+  motor_off();
+
 //     return;
  }
 
@@ -218,25 +224,26 @@ int main(void)
 {
     /* Initialiazation */
     board_init();
-    led_on(0,0);
+    //led_on(0,0);
     /* Greetings */
     printf("hello, world!\n");
     audio_sweep(100, 2000, 200);
 
-       osKernelInitialize();
+      // osKernelInitialize();
 //    osThreadNew(uart_command_task, NULL, NULL);
    // led_blink(1,1);
-   osKernelStart();
-   InitializeGestureQueue();
+ //  osKernelStart();
+ //  InitializeGestureQueue();
     /* never returns */
 
-    led_blink(2, 2);
+   // led_blink(2, 2);
 
    int  led_button_number = 0;
 
     if(thisDeviceMode == EXPLORER)
     {
-        led_on(4,4);
+        // led_on(4,4);
+       // osThreadNew(GestureQueueThread, NULL, NULL);
     }
 
     while(1)
@@ -246,12 +253,19 @@ int main(void)
                 if(thisDeviceMode == COMMANDER)
                     {
 
-                        enum GESTURE_COMMAND g = compute_direction();
+                        // enum GESTURE_COMMAND g = compute_direction();
                         struct GESTURE_COMMAND_PACKET gcp;
-                        gcp.command = g%4;
+                        gcp.command = BACK;
                         gcp.rpm = 60;
-                        DispatchCommand(GESTURE,(void *)(&gcp));
-                        led_on(gcp.command,gcp.command);
+                         DispatchCommand(GESTURE,(void *)(&gcp));
+                    
+                       led_on(3,3);
+
+
+                        for(volatile int i = 0; i < 10000; i++);
+                        {
+                            asm("nop");
+                        }
                     }
         
     }
@@ -307,20 +321,22 @@ struct GESTURE_COMMAND_PACKET parseGesturePacket(const char buf[], unsigned int 
 void PushGestureIntoQueue(struct GESTURE_COMMAND_PACKET _packet)
 {
      // Put the command into the RTOS queue
-    osStatus_t status = osMessageQueuePut(gestureQueueId, &_packet, 0, 0);
+    // osStatus_t status = osMessageQueuePut(gestureQueueId, &_packet, 0, 0);
     
-    if (status != osOK) {
-        // Failed to add to queue - handle error
-        printf("Failed to enqueue gesture command\n");
-    }
+    // if (status != osOK) {
+    //     // Failed to add to queue - handle error
+    //     printf("Failed to enqueue gesture command\n");
+    // }
+
+     ActOnGestureCommand(_packet.command, _packet.rpm);
 
         for (int r = 0; r < LED_NUM_ROWS; r++) {
         for (int c = 0; c < LED_NUM_COLS; c++) {
             led_off(r,c);
         }
     }
-    int led_button_number = _packet.command;
-    led_on(led_button_number,led_button_number);
+    int led_button_number =1;
+   led_on(led_button_number,led_button_number);
 
    
 }
@@ -387,12 +403,64 @@ void DispatchGestureCommand(struct GESTURE_COMMAND_PACKET gesture_cmd)
 }
 
 
-void InitializeGestureQueue(void) {
-    // Create a queue that can hold up to 16 gesture commands
-    gestureQueueId = osMessageQueueNew(30, sizeof(struct GESTURE_COMMAND_PACKET), NULL);
+// void InitializeGestureQueue(void) {
+//     // Create a queue that can hold up to 16 gesture commands
+//     gestureQueueId = osMessageQueueNew(30, sizeof(struct GESTURE_COMMAND_PACKET), NULL);
     
-    if (gestureQueueId == NULL) {
-        // Queue creation failed - handle error
-        printf("Failed to create gesture command queue\n");
+//     if (gestureQueueId == NULL) {
+//         // Queue creation failed - handle error
+//         printf("Failed to create gesture command queue\n");
+//     }
+// }
+
+// void GestureQueueThread(void *argument)
+// {
+//     struct GESTURE_COMMAND_PACKET gcp;
+
+//     while (1)
+//     {
+//         // Wait forever for a new message in the queue
+//         osStatus_t status = osMessageQueueGet(gestureQueueId, &gcp, NULL, osWaitForever);
+
+//         if (status == osOK)
+//         {
+//             // Act on the received gesture command
+//             ActOnGestureCommand(gcp.command, gcp.rpm);
+//         }
+//         // Optionally handle errors here
+//     }
+// }
+
+void ActOnGestureCommand(enum GESTURE_COMMAND gesture, int rpm)
+{
+    // Scale rpm (0-5) to PWM speed (0-100)
+    int speed = rpm * 20;
+
+    switch (gesture) {
+        case FRONT:
+            // Move forward
+            motor_on(MOTOR_FORWARD, speed, MOTOR_FORWARD, speed);
+            break;
+        case BACK:
+            // Move backward
+            motor_on(MOTOR_REVERSE, speed, MOTOR_REVERSE, speed);
+            break;
+        case RIGHT:
+            // Turn right (left wheel forward, right wheel backward)
+            motor_on(MOTOR_FORWARD, speed, MOTOR_REVERSE, speed);
+            break;
+        case LEFT:
+            // Turn left (left wheel backward, right wheel forward)
+            motor_on(MOTOR_REVERSE, speed, MOTOR_FORWARD, speed);
+            break;
+        case ROTATE180:
+            // Rotate in place (example: both wheels opposite directions)
+            motor_on(MOTOR_FORWARD, speed, MOTOR_REVERSE, speed);
+            // You may want to add a delay or logic to stop after 180 degrees
+            break;
+        default:
+            // Stop motors for unknown gesture
+            motor_off();
+            break;
     }
 }
