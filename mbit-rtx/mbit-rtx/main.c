@@ -8,6 +8,14 @@
 #include "accel.h"
 #include "motor.h"
 
+/* DEBUG CODE */
+/* DEBUG CODE */
+/* DEBUG CODE */
+osTimerId_t led_refresh_timer;/* DEBUG CODE */
+/* DEBUG CODE */
+/* DEBUG CODE */
+
+
 struct GESTURE_COMMAND_PACKET command_array[1000];
 enum COMMAND_TYPE GetCommandType(const char buf[],int n);
 void PushGestureIntoQueue(struct GESTURE_COMMAND_PACKET _packet);
@@ -25,12 +33,14 @@ void InitializeGestureQueue(void);
 void GestureQueueThread(void *argument);
 void ActOnGestureCommand(enum GESTURE_COMMAND gesture, int rpm);
 void CommandSenderThread(void *argument);
+void DebugThread(void *argument);
+
 
 int  OS_READY = 0;
 void explorer_init(void);
 void commander_init(void);
 void savior_init(void);
-
+void debug_init(void);
 
 
 
@@ -76,7 +86,7 @@ enum DEVICE_MODE thisDeviceMode;
  audio_init(SPEAKER, MIC, RUN_MIC);
 
 
-  communication_init(COMMANDER);
+  communication_init(DEBUG);
   LSM303AGR_Init(I2C_SCL, I2C_SDA);
   motor_init( M1A,  M1B,  M2A,  M2B);
   motor_off();
@@ -93,7 +103,6 @@ int main(void)
 
 
     printf("hello, world!\n");
-    // audio_sweep(100, 2000, 200);
 
       osKernelInitialize();
 //    osThreadNew(uart_command_task, NULL, NULL);
@@ -111,41 +120,15 @@ int main(void)
     {
         savior_init();
     }
-
-     osKernelStart();
+    else if(thisDeviceMode == DEBUG)
+    {
+        debug_init();
+    }
 
     /* never returns */
+    osKernelStart();
 
-
-//    int  led_button_number = 0;
-
-
-//     while(1)
-//     {
-
-
-//                 if(thisDeviceMode == COMMANDER)
-//                     {
-
-//                         // enum GESTURE_COMMAND g = compute_direction();
-//                         struct GESTURE_COMMAND_PACKET gcp;
-//                         gcp.command = BACK;
-//                         gcp.rpm = 60;
-//                          DispatchCommand(GESTURE,(void *)(&gcp));
-                    
-//                        led_on(3,3);
-
-
-//                         for(volatile int i = 0; i < 10000; i++);
-//                         {
-//                             asm("nop");
-//                         }
-//                     }
-        
-//     }
     
-
-
 
     return 0;
 }
@@ -207,7 +190,7 @@ void PushGestureIntoQueue(struct GESTURE_COMMAND_PACKET _packet)
         }
     }
     int led_button_number = _packet.rpm;
-    led_on(led_button_number,led_button_number);
+    
 }
 
 void DispatchCommand(enum COMMAND_TYPE _commandType, void* data )
@@ -355,6 +338,13 @@ void savior_init(void)
 
 };
 
+void debug_init(void)
+{
+    osThreadNew(DebugThread, NULL, NULL);
+    led_refresh_timer = osTimerNew((void *)led_row_refresh, osTimerPeriodic, NULL, NULL);
+    osTimerStart(led_refresh_timer, 5); // 5ms period
+};
+
 
 void CommandSenderThread(void *argument)
 {  
@@ -370,7 +360,7 @@ void CommandSenderThread(void *argument)
         // 2. If gesture changed, send new command
         if (current_gesture != prev_gesture && current_gesture != -1)
         {
-                      led_on(4,4);
+                     
          osDelay(200); 
 
             struct GESTURE_COMMAND_PACKET gcp;
@@ -382,7 +372,7 @@ void CommandSenderThread(void *argument)
             
             prev_gesture = current_gesture;
             
-            led_on(current_gesture, current_gesture);
+            
         }
 
         // 3. Wait before checking again
@@ -398,6 +388,18 @@ void CommandSenderThread(void *argument)
 
 }
 
+void DebugThread(void *argument)
+{
+    int diagonal = 0;
+    while(1)
+    {
+
+        frame_buffer[diagonal][diagonal] = 0;
+        diagonal = (diagonal + 1) % LED_NUM_ROWS;
+        frame_buffer[diagonal][diagonal] = 1;
+        osDelay(1000);
+    }
+}
 // extern void uart_command_task(void *arg);
 
 // /* OS objects */

@@ -29,7 +29,8 @@ enum DEVICE_MODE
 {
     COMMANDER,
     EXPLORER,
-    SAVIOR
+    SAVIOR,
+    DEBUG
 };
 
 struct GESTURE_COMMAND_PACKET
