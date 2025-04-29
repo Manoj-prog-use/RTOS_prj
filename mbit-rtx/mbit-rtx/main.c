@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "bsp.h"
  #include "bsp2.h"
 #include "cmsis_os2.h"
@@ -12,35 +13,68 @@
 /* DEBUG CODE */
 /* DEBUG CODE */
 osTimerId_t led_refresh_timer;/* DEBUG CODE */
+osTimerId_t test_timer;  // Add this with other global declarations
+
 /* DEBUG CODE */
 /* DEBUG CODE */
+
+/*COMMON*/
+    int seconds_elapsed=0;
+    int imu_radial_distance=0;
+    int encoder_distance=0;
+    int battery_level=100;
+    int temperature=37;
+void communication_init(enum DEVICE_MODE _thisDeviceMode);
+/*COMMON*/
+
+/*COMMANDER*/
+void commander_init(void);
+void commander_radio_callback(const char buf[], unsigned int n);
+void CommandSenderThread(void *argument);
+struct HEARTBEAT_COMMAND_PACKET parseHeartbeatPacket(const char buf[], unsigned int n);
+void PushHeartbeatIntoQueue(struct HEARTBEAT_COMMAND_PACKET _packet);
+/*COMMANDER*/
+
+/*EXPLORER*/
+osMessageQueueId_t gestureQueueId;
+void explorer_init(void);
+void explorer_radio_callback(const char buf[], unsigned int n);
+void InitializeGestureQueue(void);
+void GestureQueueThread(void *argument);
+void ExplorerHeartbeatThread(void *argument);
+void DispatchHeartbeatCommand(struct HEARTBEAT_COMMAND_PACKET heartbeat_cmd);
+void ActOnGestureCommand(enum GESTURE_COMMAND gesture, int rpm);
+/*EXPLORER*/
+
+/*SAVIOR*/
+void savior_init(void);
+void savior_radio_callback(const char buf[], unsigned int n);
+/*SAVIOR*/
+
+/*DEBUG*/
+void debug_init(void);
+void DebugThread(void *argument);
+/*DEBUG*/
+
+
 
 
 struct GESTURE_COMMAND_PACKET command_array[1000];
 enum COMMAND_TYPE GetCommandType(const char buf[],int n);
 void PushGestureIntoQueue(struct GESTURE_COMMAND_PACKET _packet);
 struct GESTURE_COMMAND_PACKET parseGesturePacket(const char buf[],unsigned int n);
-void communication_init(enum DEVICE_MODE _thisDeviceMode);
 void DispatchCommand(enum COMMAND_TYPE, void* data );
 void DispatchGestureCommand(struct GESTURE_COMMAND_PACKET);
 // void DispatchActivateCommand(struct ACTIVATE_COMMAND_PACKET);
 // void DispatchDeactivateCommand(struct DEACTIVATE_COMMAND_PACKET);
 // void DispatchPathInfoDownloadCommand(struct PATH_INFO_DOWNLOAD);
 
-// At the top of your file with other global declarations
-osMessageQueueId_t gestureQueueId;
-void InitializeGestureQueue(void);
-void GestureQueueThread(void *argument);
-void ActOnGestureCommand(enum GESTURE_COMMAND gesture, int rpm);
-void CommandSenderThread(void *argument);
-void DebugThread(void *argument);
+
+
+
 
 
 int  OS_READY = 0;
-void explorer_init(void);
-void commander_init(void);
-void savior_init(void);
-void debug_init(void);
 
 
 
@@ -49,23 +83,11 @@ void debug_init(void);
 
 
 
-void my_radio_callback(const char buf[], unsigned int n)
-{
-    if(OS_READY == 1)
-        {
-        /*
-        my_radio_callback will just push the command into a global vector. 
-        Some other interrupt will come in and read this command
-        */
-        if(GetCommandType(buf,n)== GESTURE)
-        {
-            printf("%s","GESTURE COMMAND FOUND");
-            struct GESTURE_COMMAND_PACKET gestureCommandPacket =  parseGesturePacket(buf,n);
-            PushGestureIntoQueue(gestureCommandPacket);
-        }
-    }
 
-}
+
+
+
+
 
 
 
@@ -86,7 +108,7 @@ enum DEVICE_MODE thisDeviceMode;
  audio_init(SPEAKER, MIC, RUN_MIC);
 
 
-  communication_init(DEBUG);
+  communication_init(COMMANDER);
   LSM303AGR_Init(I2C_SCL, I2C_SDA);
   motor_init( M1A,  M1B,  M2A,  M2B);
   motor_off();
@@ -151,6 +173,7 @@ enum COMMAND_TYPE GetCommandType(const char buf[],int n)
         case (int)(ACTIVATE_BOT): return ACTIVATE_BOT; 
         case (int)(DEACTIVATE_BOT): return DEACTIVATE_BOT; 
         case (int)(PATH_INFO_DOWNLOAD): return PATH_INFO_DOWNLOAD; 
+        case (int)(HEARTBEAT): return HEARTBEAT; 
 
         
         default:
@@ -203,7 +226,12 @@ void DispatchCommand(enum COMMAND_TYPE _commandType, void* data )
         DispatchGestureCommand(*gesture_cmd);
         break;
         }
-        // case ACTIVATE_BOT:
+         case HEARTBEAT:
+        {
+        struct HEARTBEAT_COMMAND_PACKET* heartbeat_cmd = (struct HEARTBEAT_COMMAND_PACKET*)data;
+        DispatchHeartbeatCommand(*heartbeat_cmd);
+        break;
+        }
         // {
         // struct ACTIVATE_COMMAND_PACKET* activate_cmd = (struct ACTIVATE_COMMAND_PACKET*)data;
         // DispatchActivateCommand(*activate_cmd);
@@ -285,6 +313,8 @@ void GestureQueueThread(void *argument)
     }
 }
 
+
+
 void ActOnGestureCommand(enum GESTURE_COMMAND gesture, int rpm)
 {
     // Scale rpm (0-5) to PWM speed (0-100)
@@ -319,39 +349,165 @@ void ActOnGestureCommand(enum GESTURE_COMMAND gesture, int rpm)
     }
 }
 
+void ExplorerHeartbeatThread(void *argument)
+{
+    static int heartbeat_counter = 0;
+    while(1)
+    {
+        heartbeat_counter++;
+        seconds_elapsed = osKernelGetTickCount() / osKernelGetTickFreq();
+        struct HEARTBEAT_COMMAND_PACKET hcp;
+        hcp.heartbeat_counter = heartbeat_counter;
+        hcp.seconds_elapsed = seconds_elapsed;
+        hcp.imu_radial_distance = imu_radial_distance;
+        hcp.encoder_distance = encoder_distance;
+        hcp.battery_level = battery_level;
+        hcp.temperature = temperature;
+
+        DispatchCommand(HEARTBEAT, (void *)&hcp);
+
+        osDelay(1000);
+    }
+}
+
+void DispatchHeartbeatCommand(struct HEARTBEAT_COMMAND_PACKET heartbeat_cmd)
+{
+    char buffer[sizeof(struct HEARTBEAT_COMMAND_PACKET) + 1];  // +1 for command type
+    
+    // First byte indicates the command type (HEARTBEAT)
+    buffer[0] = HEARTBEAT;  // Set first byte to identify packet type
+    
+    // Serialize the struct into the buffer (starting at position 1)
+    memcpy(&buffer[1], &heartbeat_cmd, sizeof(struct HEARTBEAT_COMMAND_PACKET));
+    
+    // Calculate the total size of the message
+    unsigned int message_size = sizeof(struct HEARTBEAT_COMMAND_PACKET) + 1;
+    
+    // Send the packet over radio
+    radio_send(buffer, message_size);
+
+    printf("Sent heartbeat command: Seconds Elapsed=%d, IMU Radial Distance=%d, Encoder Distance=%d, Battery Level=%d, Temperature=%d\n", 
+           heartbeat_cmd.seconds_elapsed, heartbeat_cmd.imu_radial_distance, heartbeat_cmd.encoder_distance, 
+           heartbeat_cmd.battery_level, heartbeat_cmd.temperature);
+    
+}
+
 void explorer_init(void)
 {
            InitializeGestureQueue();
            osThreadNew(GestureQueueThread, NULL, NULL);
-            radio_init(my_radio_callback);
+           osThreadNew(ExplorerHeartbeatThread, NULL, NULL);
+            radio_init(explorer_radio_callback);
 
 
 };
 void commander_init(void)
 {
      osThreadNew(CommandSenderThread, NULL, NULL);
+     led_refresh_timer = osTimerNew((void *)led_row_refresh, osTimerPeriodic, NULL, NULL);
+         if (led_refresh_timer == NULL) {
+        printf("LED timer creation failed!\n");
+    }
+    radio_init(commander_radio_callback);
+
+     
 
 
 };
 void savior_init(void)
 {
+    radio_init(savior_radio_callback);
+};
+
+void explorer_radio_callback(const char buf[], unsigned int n)
+{
+    if(OS_READY == 1)
+        {
+        /*
+        my_radio_callback will just push the command into a global vector. 
+        Some other interrupt will come in and read this command
+        */
+        if(GetCommandType(buf,n)== GESTURE)
+        {
+            printf("%s","GESTURE COMMAND FOUND");
+            struct GESTURE_COMMAND_PACKET gestureCommandPacket =  parseGesturePacket(buf,n);
+            PushGestureIntoQueue(gestureCommandPacket);
+        }
+    }
+
+}
+
+void commander_radio_callback(const char buf[], unsigned int n)
+{
+    if(OS_READY == 1)
+        {
+        /*
+        my_radio_callback will just push the command into a global vector. 
+        Some other interrupt will come in and read this command
+        */  
+        if(GetCommandType(buf,n)== HEARTBEAT)
+        {
+            printf("%s","HEARTBEAT COMMAND FOUND\r\n");
+            struct HEARTBEAT_COMMAND_PACKET heartbeatCommandPacket =  parseHeartbeatPacket(buf,n);
+            PushHeartbeatIntoQueue(heartbeatCommandPacket);
+        }
+        }
+};
+
+struct HEARTBEAT_COMMAND_PACKET parseHeartbeatPacket(const char buf[], unsigned int n)
+{
+    struct HEARTBEAT_COMMAND_PACKET result;
+    memcpy(&result, buf + 1, sizeof(struct HEARTBEAT_COMMAND_PACKET));
+    return result;
+}
+
+void PushHeartbeatIntoQueue(struct HEARTBEAT_COMMAND_PACKET _packet)
+{
+    printf("Heartbead packet: %d, %d, %d, %d, %d\n", _packet.heartbeat_counter, _packet.seconds_elapsed, _packet.imu_radial_distance, _packet.encoder_distance, _packet.battery_level, _packet.temperature);
+    // osMessageQueuePut(heartbeatQueueId, &_packet, 0, 0);
+}
+
+void savior_radio_callback(const char buf[], unsigned int n)
+{
 
 };
+
+
+void test_timer_callback(void *argument)
+{
+    printf("Test timer tick\n");
+}
+
 
 void debug_init(void)
 {
     osThreadNew(DebugThread, NULL, NULL);
+    // Check LED timer creation
     led_refresh_timer = osTimerNew((void *)led_row_refresh, osTimerPeriodic, NULL, NULL);
-    osTimerStart(led_refresh_timer, 5); // 5ms period
+    if (led_refresh_timer == NULL) {
+        printf("LED timer creation failed!\n");
+    }
+    
+    // Check test timer creation
+    test_timer = osTimerNew((void *)test_timer_callback, osTimerPeriodic, NULL, NULL);
+    if (test_timer == NULL) {
+        printf("Test timer creation failed!\n");
+    }
+
+    
 };
 
 
 void CommandSenderThread(void *argument)
 {  
+    OS_READY = 1;
+            osStatus_t status = osTimerStart(led_refresh_timer, 5);
+         printf("LED timer start status: %d\n", (int)status);
     enum GESTURE_COMMAND prev_gesture = -1; // Initialize to an invalid value
 
     while (1)
     {
+        frame_buffer[3][3] = 1;  // Turn on
         // 1. Detect current gesture
         enum GESTURE_COMMAND current_gesture = compute_direction();
 
@@ -376,12 +532,15 @@ void CommandSenderThread(void *argument)
         }
 
         // 3. Wait before checking again
-                for (int r = 0; r < LED_NUM_ROWS; r++) {
+       
+        osDelay(250); // 200 ms, adjust as needed
+                 for (int r = 0; r < LED_NUM_ROWS; r++) {
             for (int c = 0; c < LED_NUM_COLS; c++) {
-                led_off(r, c);
+                frame_buffer[r][c] = 0;
             }
         }
-        osDelay(2000); // 200 ms, adjust as needed
+        osDelay(250);
+        fflush(stdout); 
         
         // osThreadExit();
     }
@@ -390,14 +549,20 @@ void CommandSenderThread(void *argument)
 
 void DebugThread(void *argument)
 {
-    int diagonal = 0;
+        osStatus_t status = osTimerStart(led_refresh_timer, 5);
+         printf("LED timer start status: %d\n", (int)status);
     while(1)
     {
-
-        frame_buffer[diagonal][diagonal] = 0;
-        diagonal = (diagonal + 1) % LED_NUM_ROWS;
-        frame_buffer[diagonal][diagonal] = 1;
-        osDelay(1000);
+        frame_buffer[0][0] = 1;  // Turn on
+        osDelay(500);
+        printf("%d\n",frame_buffer[0][0]);
+        frame_buffer[0][0] = 0;
+        osDelay(500);
+        printf("%d\n",frame_buffer[0][0]);
+        
+    //     frame_buffer[0][0] = 0;  // Turn off
+    //     printf("OFF\n");
+    //     osDelay(1000);
     }
 }
 // extern void uart_command_task(void *arg);

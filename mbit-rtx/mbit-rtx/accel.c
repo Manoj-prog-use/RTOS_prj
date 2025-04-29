@@ -10,29 +10,35 @@ int16_t avg_accel_values[3]; // [0]=X, [1]=Y, [2]=Z
 
 
 void calc_avg_Acc(){
-
     int x_avg = 0;
     int y_avg = 0;
     int z_avg = 0;
+    int successful_reads = 0;
 
-    for(int i=0;i<5;i++){
+    for(int i=0; i<5; i++){
+        // Read accelerometer values
         LSM303AGR_AccReadXYZ(accel_values);
-
+        
+        // Add to running totals
         x_avg += accel_values[0];
         y_avg += accel_values[1];
         z_avg += accel_values[2];
-        osDelay(10);
+        
+        successful_reads++;
+        
+        // Give other tasks a chance to run
+        osDelay(20); // Increased from 10ms to 20ms for better reliability
     }
 
-    avg_accel_values[0] = x_avg/5;
-    avg_accel_values[1] = y_avg/5;
-    avg_accel_values[2] = z_avg/5;
-
-    printf("%d\r\n", avg_accel_values[0]);
-    printf("%d\r\n", avg_accel_values[1]);
-    printf("%d\r\n", avg_accel_values[2]);
-    printf("\r\n");
-
+    // Calculate averages (protect against division by zero)
+    if (successful_reads > 0) {
+        avg_accel_values[0] = x_avg / successful_reads;
+        avg_accel_values[1] = y_avg / successful_reads; 
+        avg_accel_values[2] = z_avg / successful_reads;
+        
+        // Use a single printf to reduce UART buffer pressure
+        // printf("XYZ: %d,%d,%d\r\n", avg_accel_values[0], avg_accel_values[1], avg_accel_values[2]);
+    }
 }
 
 

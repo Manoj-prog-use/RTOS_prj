@@ -9,6 +9,7 @@ enum COMMAND_TYPE
     ACTIVATE_BOT,
     DEACTIVATE_BOT,
     PATH_INFO_DOWNLOAD,
+    HEARTBEAT,
 
 
 };
@@ -52,6 +53,16 @@ struct DEACTIVATE_COMMAND_PACKET
 struct PATH_INFO_DOWNLOAD_COMMAND_PACKET
 {
     int dummy_variable;
+};
+
+struct HEARTBEAT_COMMAND_PACKET
+{
+    int heartbeat_counter;
+    int seconds_elapsed;
+    float imu_radial_distance;
+    float encoder_distance;
+    float battery_level;
+    float temperature;
 };
 
 #endif /* CROSS_TEAM_DEFINITIONS_H */
