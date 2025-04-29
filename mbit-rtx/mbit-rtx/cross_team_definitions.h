@@ -1,6 +1,20 @@
 #ifndef CROSS_TEAM_DEFINITIONS_H
 #define CROSS_TEAM_DEFINITIONS_H
 
+#include <string.h>
+#include <stdint.h>
+#include <stdlib.h>
+// #include <stdio.h>
+#include "bsp.h"
+ #include "bsp2.h"
+#include "cmsis_os2.h"
+#include "accel.h"
+#include "motor.h"
+
+extern int OS_READY;
+extern osTimerId_t led_refresh_timer;/* DEBUG CODE */
+extern osTimerId_t test_timer;  // Add this with other global declarations
+void board_init(void);
 
 
 enum COMMAND_TYPE
@@ -31,8 +45,12 @@ enum DEVICE_MODE
     COMMANDER,
     EXPLORER,
     SAVIOR,
-    DEBUG
+    DEBUG,
+    DEVICE_MODE_UNDEFINED
 };
+
+extern enum DEVICE_MODE thisDeviceMode;
+
 
 struct GESTURE_COMMAND_PACKET
 {
@@ -64,5 +82,19 @@ struct HEARTBEAT_COMMAND_PACKET
     float battery_level;
     float temperature;
 };
+
+    extern int seconds_elapsed;
+    extern int imu_radial_distance;
+    extern int encoder_distance;
+    extern int battery_level;
+    extern int temperature;
+
+void communication_init(enum DEVICE_MODE _thisDeviceMode);
+enum COMMAND_TYPE GetCommandType(const char buf[],int n);
+void DispatchCommand(enum COMMAND_TYPE, void* data );
+void DispatchGestureCommand(struct GESTURE_COMMAND_PACKET);
+void DispatchHeartbeatCommand(struct HEARTBEAT_COMMAND_PACKET heartbeat_cmd);
+void DispatchActivateCommand(struct ACTIVATE_COMMAND_PACKET activate_cmd);
+
 
 #endif /* CROSS_TEAM_DEFINITIONS_H */
