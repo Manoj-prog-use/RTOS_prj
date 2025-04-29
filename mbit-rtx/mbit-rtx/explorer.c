@@ -4,10 +4,14 @@ osMessageQueueId_t gestureQueueId;
 
 void explorer_init(void)
 {
-           InitializeGestureQueue();
-           osThreadNew(GestureQueueThread, NULL, NULL);
-           osThreadNew(ExplorerHeartbeatThread, NULL, NULL);
-            radio_init(explorer_radio_callback);
+    InitializeGestureQueue();
+    osThreadNew(GestureQueueThread, NULL, NULL);
+    osThreadNew(ExplorerHeartbeatThread, NULL, NULL);
+    led_refresh_timer = osTimerNew((void *)led_row_refresh, osTimerPeriodic, NULL, NULL);
+    if (led_refresh_timer == NULL) {
+        printf("LED timer creation failed!\n");
+    }
+    radio_init(explorer_radio_callback);
 
 
 };
@@ -74,7 +78,7 @@ void InitializeGestureQueue(void) {
 void GestureQueueThread(void *argument)
 {
     OS_READY = 1;
-
+    osTimerStart(led_refresh_timer, 5);
     struct GESTURE_COMMAND_PACKET gcp;
 
     while (1)
@@ -96,24 +100,28 @@ void GestureQueueThread(void *argument)
 void ActOnGestureCommand(enum GESTURE_COMMAND gesture, int rpm)
 {
     // Scale rpm (0-5) to PWM speed (0-100)
-    int speed = rpm * 20;
+    int speed = rpm * 5;
 
     switch (gesture) {
         case FRONT:
             // Move forward
-            motor_on(MOTOR_FORWARD, speed, MOTOR_FORWARD, speed);
+            motor_on(MOTOR_FORWARD, speed, MOTOR_REVERSE, speed);
+            load_letter_to_framebuffer(LETTER_F);
             break;
         case BACK:
             // Move backward
-            motor_on(MOTOR_REVERSE, speed, MOTOR_REVERSE, speed);
+            motor_on(MOTOR_REVERSE, speed, MOTOR_FORWARD, speed);
+            load_letter_to_framebuffer(LETTER_B);
             break;
         case RIGHT:
             // Turn right (left wheel forward, right wheel backward)
-            motor_on(MOTOR_FORWARD, speed, MOTOR_REVERSE, speed);
+            motor_on(MOTOR_FORWARD, speed, MOTOR_FORWARD, speed);
+            load_letter_to_framebuffer(LETTER_R);
             break;
         case LEFT:
             // Turn left (left wheel backward, right wheel forward)
-            motor_on(MOTOR_REVERSE, speed, MOTOR_FORWARD, speed);
+            motor_on(MOTOR_REVERSE, speed, MOTOR_REVERSE, speed);
+            load_letter_to_framebuffer(LETTER_L);
             break;
         case ROTATE180:
             // Rotate in place (example: both wheels opposite directions)

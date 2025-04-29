@@ -13,7 +13,7 @@ int main(void)
     printf("hello, world!\n");
     osKernelInitialize();
 
-    thisDeviceMode = SAVIOR;
+    thisDeviceMode = EXPLORER;
 
     if(thisDeviceMode == EXPLORER)
         {

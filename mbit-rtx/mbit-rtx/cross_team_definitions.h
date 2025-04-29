@@ -11,6 +11,8 @@
 #include "accel.h"
 #include "motor.h"
 
+
+
 extern int OS_READY;
 extern osTimerId_t led_refresh_timer;/* DEBUG CODE */
 extern osTimerId_t test_timer;  // Add this with other global declarations
@@ -96,5 +98,35 @@ void DispatchGestureCommand(struct GESTURE_COMMAND_PACKET);
 void DispatchHeartbeatCommand(struct HEARTBEAT_COMMAND_PACKET heartbeat_cmd);
 void DispatchActivateCommand(struct ACTIVATE_COMMAND_PACKET activate_cmd);
 
+
+#define LETTER_A 0
+#define LETTER_B 1
+#define LETTER_C 2
+#define LETTER_D 3
+#define LETTER_E 4
+#define LETTER_F 5
+#define LETTER_G 6
+#define LETTER_H 7
+#define LETTER_I 8
+#define LETTER_J 9
+#define LETTER_K 10
+#define LETTER_L 11
+#define LETTER_M 12
+#define LETTER_N 13
+#define LETTER_O 14
+#define LETTER_P 15
+#define LETTER_Q 16
+#define LETTER_R 17
+#define LETTER_S 18
+#define LETTER_T 19
+#define LETTER_U 20
+#define LETTER_V 21
+#define LETTER_W 22
+#define LETTER_X 23
+#define LETTER_Y 24
+#define LETTER_Z 25
+
+extern const int letter_patterns[26][5][5];
+void load_letter_to_framebuffer(int letter_index);
 
 #endif /* CROSS_TEAM_DEFINITIONS_H */
