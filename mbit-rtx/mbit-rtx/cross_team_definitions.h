@@ -8,7 +8,7 @@
 #include "bsp.h"
  #include "bsp2.h"
 #include "cmsis_os2.h"
-#include "accel.h"
+// #include "accel.h"
 #include "motor.h"
 
 

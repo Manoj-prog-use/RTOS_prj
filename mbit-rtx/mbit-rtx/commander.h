@@ -2,6 +2,7 @@
 #define COMMANDER_H
 
 #include "cross_team_definitions.h"
+#include "accel.h"
 
 #define MAX_HEARTBEAT_DELAY 5
 
