@@ -71,6 +71,8 @@ struct SEARCH_BEGIN_COMMAND_PACKET parseSearchBeginPacket(const char buf[], unsi
 
 void SaviorMainThread(void *argument)
 {
+    load_letter_to_framebuffer(LETTER_S);
+    osDelay(1000);
     osTimerStart(led_refresh_timer, 5);
     while(1)
     {

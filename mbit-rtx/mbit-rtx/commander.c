@@ -37,6 +37,8 @@ void InitRescueGestureQueue(void)
 
 void CommandSenderThread(void *argument)
 {  
+    load_letter_to_framebuffer(LETTER_C);
+    osDelay(1000);
     OS_READY = 1;
             osStatus_t status = osTimerStart(led_refresh_timer, 5);
          printf("LED timer start status: %d\n", (int)status);

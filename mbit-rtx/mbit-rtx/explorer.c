@@ -77,6 +77,8 @@ void InitializeGestureQueue(void) {
 
 void GestureQueueThread(void *argument)
 {
+    load_letter_to_framebuffer(LETTER_E);
+    osDelay(1000);
     OS_READY = 1;
     osTimerStart(led_refresh_timer, 5);
     struct GESTURE_COMMAND_PACKET gcp;

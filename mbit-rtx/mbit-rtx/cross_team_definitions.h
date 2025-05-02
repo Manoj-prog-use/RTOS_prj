@@ -38,8 +38,8 @@ enum GESTURE_COMMAND
     RIGHT,
     BACK,
     LEFT,
-    NO_GESTURE
-    
+    NO_GESTURE,
+    ROTATE180
 };
 
 // enum RESCUE_GESTURE_COMMAND
