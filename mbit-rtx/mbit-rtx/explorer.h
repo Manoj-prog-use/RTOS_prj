@@ -11,6 +11,7 @@ void explorer_radio_callback(const char buf[], unsigned int n);
 void InitializeGestureQueue(void);
 void GestureQueueThread(void *argument);
 void ExplorerHeartbeatThread(void *argument);
+void ExplorerCheckLostConnection(void *argument);
 void ActOnGestureCommand(enum GESTURE_COMMAND gesture, int rpm);
 void PushGestureIntoQueue(struct GESTURE_COMMAND_PACKET _packet);
 struct GESTURE_COMMAND_PACKET parseGesturePacket(const char buf[],unsigned int n);

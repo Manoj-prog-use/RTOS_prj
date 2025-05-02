@@ -162,11 +162,14 @@ void ExplorerHeartbeatThread(void *argument)
 }
 
 void ExplorerCheckLostConnection(void *argument){
+
+    audio_sweep(500, 1000, 1000);
+
+    while(1){
+
     int current_time =  osKernelGetTickCount() / osKernelGetTickFreq();
 
     int delay = current_time - last_message_time;
-
-    while(1){
         
     if(delay>6){
         load_letter_to_framebuffer(LETTER_O);
@@ -175,10 +178,6 @@ void ExplorerCheckLostConnection(void *argument){
     }
 
     osDelay(1000);
-
-
     }
-
-
 
 }
