@@ -4,7 +4,7 @@
 #include "cross_team_definitions.h"
 #include "accel.h"
 
-#define MAX_HEARTBEAT_DELAY 5
+#define MAX_HEARTBEAT_DELAY 10
 
 /*COMMANDER*/
 // extern struct RESCUE_GESTURE_COMMAND_PACKET rescue_gesture_command_packet_array[50];

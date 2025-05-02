@@ -7,6 +7,7 @@
 
 /*SAVIOR*/
 extern int search_allowed;
+extern int time_savior_search_started;
 extern int SAVIOUR_ACTIVE;
 
 
@@ -19,6 +20,7 @@ struct RESCUE_GESTURE_COMMAND_PACKET parseRescueGesturePacket(const char buf[], 
 struct SEARCH_BEGIN_COMMAND_PACKET parseSearchBeginPacket(const char buf[], unsigned int n);
 void SaviorMainThread(void *argument);
 void SaviorSearchThread(void *argument);
+void ActOnRescueGestureThread(void *argument);
 /*SAVIOR*/
 
 

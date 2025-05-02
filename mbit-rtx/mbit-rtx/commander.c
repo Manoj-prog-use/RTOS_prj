@@ -70,7 +70,7 @@ void CommandSenderThread(void *argument)
             struct RESCUE_GESTURE_COMMAND_PACKET rgcp;
             rgcp.command = current_gesture;
             rgcp.rpm = 3; // Or any speed you want
-            rgcp.seconds_elapsed = 5;
+            rgcp.seconds_elapsed = osKernelGetTickCount() / osKernelGetTickFreq();;
             osMessageQueuePut(rescueGestureQueueId, &rgcp, 0, 0);
 
 
@@ -153,6 +153,7 @@ void check_connection_status(void)
     }
 }
 
+//hi
 void ActivateSaviour(void)
 {
             struct ACTIVATE_COMMAND_PACKET activateCommandPacket;
