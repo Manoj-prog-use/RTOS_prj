@@ -14,7 +14,7 @@ void ExplorerHeartbeatThread(void *argument);
 void ActOnGestureCommand(enum GESTURE_COMMAND gesture, int rpm);
 void PushGestureIntoQueue(struct GESTURE_COMMAND_PACKET _packet);
 struct GESTURE_COMMAND_PACKET parseGesturePacket(const char buf[],unsigned int n);
-
+extern int last_message_time;
 /*EXPLORER*/
 
 

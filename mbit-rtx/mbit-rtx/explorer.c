@@ -1,12 +1,14 @@
 #include "explorer.h"
 
 osMessageQueueId_t gestureQueueId;
+int last_message_time = 0;
 
 void explorer_init(void)
 {
     InitializeGestureQueue();
     osThreadNew(GestureQueueThread, NULL, NULL);
     osThreadNew(ExplorerHeartbeatThread, NULL, NULL);
+    osThreadNew(ExplorerCheckLostConnection, NULL, NULL);
     led_refresh_timer = osTimerNew((void *)led_row_refresh, osTimerPeriodic, NULL, NULL);
     if (led_refresh_timer == NULL) {
         printf("LED timer creation failed!\n");
@@ -29,6 +31,7 @@ void explorer_radio_callback(const char buf[], unsigned int n)
             printf("%s","GESTURE COMMAND FOUND");
             struct GESTURE_COMMAND_PACKET gestureCommandPacket =  parseGesturePacket(buf,n);
             PushGestureIntoQueue(gestureCommandPacket);
+            last_message_time = osKernelGetTickCount() / osKernelGetTickFreq();
         }
     }
 
@@ -154,4 +157,26 @@ void ExplorerHeartbeatThread(void *argument)
 
         osDelay(1000);
     }
+}
+
+void ExplorerCheckLostConnection(void *argument){
+    int current_time =  osKernelGetTickCount() / osKernelGetTickFreq();
+
+    int delay = current_time - last_message_time;
+
+    while(1){
+        
+    if(delay>6){
+        load_letter_to_framebuffer(LETTER_O);
+        printf("O\n");
+        motor_off();
+    }
+
+    osDelay(1000);
+
+
+    }
+
+
+
 }
