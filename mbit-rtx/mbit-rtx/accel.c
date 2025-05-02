@@ -204,7 +204,7 @@ enum GESTURE_COMMAND compute_direction() {
         
         if (detected_gesture != NO_GESTURE && is_new_gesture(detected_gesture)) {
             // Display the gesture on the LED matrix
-            // display_gesture(detected_gesture);
+            display_gesture(detected_gesture);
             // printf("Detected gesture: %d - X:%d Y:%d Z:%d\n", 
             //       detected_gesture, avg_accel_values[0], avg_accel_values[1], avg_accel_values[2]);
             return detected_gesture;
@@ -214,7 +214,7 @@ enum GESTURE_COMMAND compute_direction() {
         is_new_gesture(NO_GESTURE);
         
         // Display 'I' for idle state
-        // load_letter_to_framebuffer(LETTER_I);
+        load_letter_to_framebuffer(LETTER_I);
     }
     
     // When no valid gesture is detected, return -1

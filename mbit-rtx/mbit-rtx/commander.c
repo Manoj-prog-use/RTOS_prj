@@ -140,8 +140,10 @@ void check_connection_status(void)
             ActivateSaviour();
             osDelay(1000);
             SendAllCommandsToSaviour();
-            // TellSaviourToSearch();
-            // osThreadExit();
+            osDelay(1000);
+            TellSaviourToSearch();
+            osDelay(1000);
+            osThreadExit();
             /*Send the rescue gesture commands to the saviour*/
  
 
@@ -161,7 +163,7 @@ void ActivateSaviour(void)
 void SendAllCommandsToSaviour(void)
 {
     
-    printf("%d",osMessageQueueGetCount(rescueGestureQueueId));
+    // printf("%d",osMessageQueueGetCount(rescueGestureQueueId));
     struct RESCUE_GESTURE_COMMAND_PACKET rgcp;
     frame_buffer[2][2] = 1;
     while(osMessageQueueGet(rescueGestureQueueId, &rgcp, NULL, 0) == osOK)
@@ -171,27 +173,27 @@ void SendAllCommandsToSaviour(void)
             // load_letter_to_framebuffer(LETTER_F);
             // frame_buffer[3][2] = 0;
             // printf("Command: %d\n", command);
-            // //  DispatchCommand(RESCUE_GESTURE, (void *)&rgcp);
+             DispatchCommand(RESCUE_GESTURE, (void *)&rgcp);
             if(command == FRONT)
             {
                 load_letter_to_framebuffer(LETTER_F);
-                printf("F");
+                printf("F\n");
             }
-            // else if(command == RIGHT)
-            // {
-            //     // load_letter_to_framebuffer(LETTER_R);
-            //     printf("R");
-            // }
-            // else if(command == BACK)
-            // {
-            //     // load_letter_to_framebuffer(LETTER_B);
-            //     printf("B");
-            // }
-            // else if(command == LEFT)
-            // {
-            //     // load_letter_to_framebuffer(LETTER_L);
-            //     printf("L");
-            // }
+            else if(command == RIGHT)
+            {
+                load_letter_to_framebuffer(LETTER_R);
+                printf("R\n");
+            }
+            else if(command == BACK)
+            {
+                load_letter_to_framebuffer(LETTER_B);
+                printf("B\n");
+            }
+            else if(command == LEFT)
+            {
+                load_letter_to_framebuffer(LETTER_L);
+                printf("L\n");
+            }
 
         }
         osDelay(1000);

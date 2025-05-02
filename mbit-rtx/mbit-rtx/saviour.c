@@ -9,7 +9,7 @@ void savior_init(void)
 {
     radio_init(savior_radio_callback);
     osThreadId_t savior_thread = osThreadNew(SaviorMainThread, NULL, NULL);
-    // osThreadId_t savior_search_thread = osThreadNew(SaviorSearchThread, NULL, NULL);
+    osThreadId_t savior_search_thread = osThreadNew(SaviorSearchThread, NULL, NULL);
     if(savior_thread == NULL){
         led_blink(0,0);
     }
@@ -33,19 +33,19 @@ void savior_radio_callback(const char buf[], unsigned int n)
      }
      else if(GetCommandType(buf,n) == RESCUE_GESTURE && SAVIOUR_ACTIVE == 1)
      {
-        // struct RESCUE_GESTURE_COMMAND_PACKET rgcp = parseRescueGesturePacket(buf,n);
-        // osMessageQueuePut(saviourRescueGestureQueueId, &rgcp, 0, 0);
+        struct RESCUE_GESTURE_COMMAND_PACKET rgcp = parseRescueGesturePacket(buf,n);
+        osMessageQueuePut(saviourRescueGestureQueueId, &rgcp, 0, 0);
         frame_buffer[4][2] = 1;
      }
-    //  else if(GetCommandType(buf,n) == SEARCH_BEGIN && SAVIOUR_ACTIVE == 1)
-    //  {
-    //     struct SEARCH_BEGIN_COMMAND_PACKET searchBeginCommandPacket = parseSearchBeginPacket(buf,n);
-    //     if(searchBeginCommandPacket.device_mode == SAVIOR)
-    //     {
-    //         search_allowed = 1;
-    //         frame_buffer[4][3] = 1;
-    //     }
-    //  }
+     else if(GetCommandType(buf,n) == SEARCH_BEGIN && SAVIOUR_ACTIVE == 1)
+     {
+        struct SEARCH_BEGIN_COMMAND_PACKET searchBeginCommandPacket = parseSearchBeginPacket(buf,n);
+        if(searchBeginCommandPacket.device_mode == SAVIOR)
+        {
+            search_allowed = 1;
+            frame_buffer[4][3] = 1;
+        }
+     }
 };
 
 struct ACTIVATE_COMMAND_PACKET parseActivatePacket(const char buf[], unsigned int n)
@@ -84,28 +84,30 @@ void SaviorMainThread(void *argument)
 
 void SaviorSearchThread(void *argument)
 {
+    frame_buffer[2][2] = 1;
     while(1)
     {
         if(search_allowed == 1)
         {
+            
             struct RESCUE_GESTURE_COMMAND_PACKET  gcp;
             while(osMessageQueueGet(saviourRescueGestureQueueId, &gcp, NULL, 0) == osOK)
             {
                 if(gcp.command == FRONT)
                 {
-                    load_letter_to_framebuffer('F');
+                    load_letter_to_framebuffer(LETTER_F);
                 }
                 else if(gcp.command == RIGHT)
                 {
-                    load_letter_to_framebuffer('R');
+                    load_letter_to_framebuffer(LETTER_R);
                 }
                 else if(gcp.command == BACK)
                 {
-                    load_letter_to_framebuffer('B');
+                    load_letter_to_framebuffer(LETTER_B);
                 }
                 else if(gcp.command == LEFT)
                 {
-                    load_letter_to_framebuffer('L');
+                    load_letter_to_framebuffer(LETTER_L);
                 }
                 osDelay(1000);
             }
