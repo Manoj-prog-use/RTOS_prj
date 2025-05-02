@@ -48,9 +48,10 @@ enum COMMAND_TYPE GetCommandType(const char buf[],int n)
         case (int)(GESTURE): return GESTURE; 
         case (int)(ACTIVATE_BOT): return ACTIVATE_BOT; 
         case (int)(DEACTIVATE_BOT): return DEACTIVATE_BOT; 
-        case (int)(PATH_INFO_DOWNLOAD): return PATH_INFO_DOWNLOAD; 
+        // case (int)(PATH_INFO_DOWNLOAD): return PATH_INFO_DOWNLOAD; 
         case (int)(HEARTBEAT): return HEARTBEAT; 
-
+        case (int)(SEARCH_BEGIN): return SEARCH_BEGIN; 
+        case (int)(RESCUE_GESTURE): return RESCUE_GESTURE; 
         
         default:
             break;
@@ -78,6 +79,18 @@ void DispatchCommand(enum COMMAND_TYPE _commandType, void* data )
         struct HEARTBEAT_COMMAND_PACKET* heartbeat_cmd = (struct HEARTBEAT_COMMAND_PACKET*)data;
         DispatchHeartbeatCommand(*heartbeat_cmd);
         break;
+        }
+        case RESCUE_GESTURE:
+        {
+            struct RESCUE_GESTURE_COMMAND_PACKET* rescue_gesture_cmd = (struct RESCUE_GESTURE_COMMAND_PACKET*)data;
+            DispatchRescueGestureCommand(*rescue_gesture_cmd);
+            break;
+        }
+        case SEARCH_BEGIN:
+        {
+            struct SEARCH_BEGIN_COMMAND_PACKET* search_begin_cmd = (struct SEARCH_BEGIN_COMMAND_PACKET*)data;
+            DispatchSearchBeginCommand(*search_begin_cmd);
+            break;
         }
         // {
         // struct ACTIVATE_COMMAND_PACKET* activate_cmd = (struct ACTIVATE_COMMAND_PACKET*)data;
@@ -129,6 +142,26 @@ void DispatchGestureCommand(struct GESTURE_COMMAND_PACKET gesture_cmd)
     // led_blink(1, 1);
 }
 
+void DispatchRescueGestureCommand(struct RESCUE_GESTURE_COMMAND_PACKET rescue_gesture_cmd)
+{
+    // Create a buffer to hold the serialized data
+    char buffer[sizeof(struct RESCUE_GESTURE_COMMAND_PACKET) + 1];  // +1 for command type  
+
+    // First byte indicates the command type (RESCUE_GESTURE)
+    buffer[0] = RESCUE_GESTURE;  // Set first byte to identify packet type
+
+    // Serialize the struct into the buffer (starting at position 1)
+    memcpy(&buffer[1], &rescue_gesture_cmd, sizeof(struct RESCUE_GESTURE_COMMAND_PACKET));
+
+    // Calculate the total size of the message
+    unsigned int message_size = sizeof(struct RESCUE_GESTURE_COMMAND_PACKET) + 1;
+    
+    // Send the packet over radio
+    radio_send(buffer, message_size);
+
+
+}
+
 void DispatchHeartbeatCommand(struct HEARTBEAT_COMMAND_PACKET heartbeat_cmd)
 {
     char buffer[sizeof(struct HEARTBEAT_COMMAND_PACKET) + 1];  // +1 for command type
@@ -167,6 +200,23 @@ void DispatchActivateCommand(struct ACTIVATE_COMMAND_PACKET activate_cmd)
     // Send the packet over radio
     radio_send(buffer, message_size);
 }
+
+void DispatchSearchBeginCommand(struct SEARCH_BEGIN_COMMAND_PACKET search_begin_cmd)
+{
+    char buffer[sizeof(struct SEARCH_BEGIN_COMMAND_PACKET) + 1];  // +1 for command type
+    
+    // First byte indicates the command type (SEARCH_BEGIN)
+    buffer[0] = SEARCH_BEGIN;  // Set first byte to identify packet type
+    
+    // Serialize the struct into the buffer (starting at position 1)
+    memcpy(&buffer[1], &search_begin_cmd, sizeof(struct SEARCH_BEGIN_COMMAND_PACKET));
+
+    // Calculate the total size of the message
+    unsigned int message_size = sizeof(struct SEARCH_BEGIN_COMMAND_PACKET) + 1;
+    
+    // Send the packet over radio
+    radio_send(buffer, message_size);
+}   
 
 // Letter-based framebuffer patterns (A-Z, 0-25)
 // Each pattern is a 5x5 matrix where 1 represents an LED on, 0 represents off

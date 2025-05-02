@@ -24,8 +24,9 @@ enum COMMAND_TYPE
     GESTURE,
     ACTIVATE_BOT,
     DEACTIVATE_BOT,
-    PATH_INFO_DOWNLOAD,
+    RESCUE_GESTURE,
     HEARTBEAT,
+    SEARCH_BEGIN
 
 
 };
@@ -37,10 +38,19 @@ enum GESTURE_COMMAND
     RIGHT,
     BACK,
     LEFT,
-    ROTATE180,
-    ACTIVATE_EXPLORER
+    NO_GESTURE
     
 };
+
+// enum RESCUE_GESTURE_COMMAND
+// {
+//     FRONT,
+//     RIGHT,
+//     BACK,
+//     LEFT,
+//     ROTATE180
+    
+// };
 
 enum DEVICE_MODE
 {
@@ -58,6 +68,13 @@ struct GESTURE_COMMAND_PACKET
 {
     enum GESTURE_COMMAND command;
     int rpm;
+};
+
+struct RESCUE_GESTURE_COMMAND_PACKET
+{
+    enum GESTURE_COMMAND command;
+    int rpm;
+    int seconds_elapsed;
 };
 
 struct ACTIVATE_COMMAND_PACKET
@@ -85,6 +102,11 @@ struct HEARTBEAT_COMMAND_PACKET
     float temperature;
 };
 
+struct SEARCH_BEGIN_COMMAND_PACKET
+{
+    enum DEVICE_MODE device_mode;
+};
+
     extern int seconds_elapsed;
     extern int imu_radial_distance;
     extern int encoder_distance;
@@ -97,6 +119,8 @@ void DispatchCommand(enum COMMAND_TYPE, void* data );
 void DispatchGestureCommand(struct GESTURE_COMMAND_PACKET);
 void DispatchHeartbeatCommand(struct HEARTBEAT_COMMAND_PACKET heartbeat_cmd);
 void DispatchActivateCommand(struct ACTIVATE_COMMAND_PACKET activate_cmd);
+void DispatchRescueGestureCommand(struct RESCUE_GESTURE_COMMAND_PACKET rescue_gesture_cmd);
+void DispatchSearchBeginCommand(struct SEARCH_BEGIN_COMMAND_PACKET search_begin_cmd);
 
 
 #define LETTER_A 0

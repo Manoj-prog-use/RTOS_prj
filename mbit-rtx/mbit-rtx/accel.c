@@ -12,14 +12,14 @@ int16_t base_accel_values[3] = {0, 0, 0}; // Calibration baseline
 int calibrated = 0;
 
 // Constants for better gesture detection
-#define ACCEL_SAMPLES 6        // Fewer samples for more responsiveness
-#define GESTURE_THRESHOLD 800  // Detection threshold
-#define GESTURE_RELEASE 400    // Lower threshold for releasing a gesture
-#define GESTURE_DEBOUNCE 200   // Increased debounce time
+#define ACCEL_SAMPLES 6        // Samples for averaging
+#define TILT_THRESHOLD 5792    // ~0.707g (sin 45°) with ±2g = ±16384 scale
+#define TILT_RELEASE 2048      // ~0.25g for releasing a gesture
+#define GESTURE_DEBOUNCE 200   // Debounce time in ms
 #define CALIBRATION_SAMPLES 15 // Samples for calibration
 
 // Last detected gesture and timestamp for debouncing
-static enum GESTURE_COMMAND last_gesture = -1;
+static enum GESTURE_COMMAND last_gesture = NO_GESTURE;
 static uint32_t last_gesture_time = 0;
 
 // Moving average filter buffer
@@ -32,7 +32,7 @@ int filter_index = 0;
 void calibrate_accelerometer() {
     int x_sum = 0, y_sum = 0, z_sum = 0;
     
-    printf("Calibrating accelerometer, please keep device still...\n");
+    printf("Calibrating accelerometer, please keep device flat...\n");
     
     // Clear filter buffers
     for (int i = 0; i < FILTER_SIZE; i++) {
@@ -50,14 +50,17 @@ void calibrate_accelerometer() {
         osDelay(20);
     }
     
-    // Set baseline values
+    // Set baseline values (these should be very close to 0 for X/Y axes when flat)
     base_accel_values[0] = x_sum / CALIBRATION_SAMPLES;
     base_accel_values[1] = y_sum / CALIBRATION_SAMPLES;
-    base_accel_values[2] = z_sum / CALIBRATION_SAMPLES;
+    
+    // Z-axis should read approximately 1g when flat
+    // We don't want to subtract this from our readings
+    base_accel_values[2] = 0;
     
     calibrated = 1;
-    printf("Calibration complete: %d, %d, %d\n", 
-           base_accel_values[0], base_accel_values[1], base_accel_values[2]);
+    printf("Calibration complete: X/Y bias: %d, %d\n", 
+           base_accel_values[0], base_accel_values[1]);
 }
 
 // Simple moving average filter
@@ -98,10 +101,10 @@ void calc_avg_Acc() {
         // Read accelerometer values
         LSM303AGR_AccReadXYZ(accel_values);
         
-        // Add to running totals
+        // Add to running totals (only correct X/Y for bias)
         x_sum += accel_values[0] - base_accel_values[0];
         y_sum += accel_values[1] - base_accel_values[1];
-        z_sum += accel_values[2] - base_accel_values[2];
+        z_sum += accel_values[2]; // Keep Z as is for gravity calculations
         
         successful_reads++;
         osDelay(5); // Quick sampling
@@ -117,13 +120,13 @@ void calc_avg_Acc() {
     }
 }
 
-// Helper function for debouncing gestures - ensure when gesture is -1, we reset
+// Helper function for debouncing gestures
 int is_new_gesture(enum GESTURE_COMMAND gesture) {
     uint32_t current_time = osKernelGetTickCount();
     
     // Always update last_gesture to allow proper release detection
-    if (gesture == -1) {
-        last_gesture = -1; // Clear last gesture when no gesture detected
+    if (gesture == NO_GESTURE) {
+        last_gesture = NO_GESTURE; // Clear last gesture when no gesture detected
         return 0;
     }
     
@@ -137,6 +140,7 @@ int is_new_gesture(enum GESTURE_COMMAND gesture) {
     return 0;
 }
 
+// Display the detected gesture on the LED screen
 // Display the detected gesture on the LED screen
 void display_gesture(enum GESTURE_COMMAND gesture) {
     // First clear the display
@@ -160,27 +164,28 @@ void display_gesture(enum GESTURE_COMMAND gesture) {
         case RIGHT:
             load_letter_to_framebuffer(LETTER_R);
             break;
-        case ROTATE180:
-            load_letter_to_framebuffer(LETTER_O);
-            break;
+        // case ROTATE180:
+        //     load_letter_to_framebuffer(LETTER_O);
+        //     break;
         default:
-            // Display already cleared
+            // Show 'I' for Idle/Invalid
+            load_letter_to_framebuffer(LETTER_I);
             break;
     }
 }
 
-int compute_direction() {
+enum GESTURE_COMMAND compute_direction() {
     calc_avg_Acc();
     
-    // Find dominant axis with highest absolute value
+    // For tilt detection, we'll compare X and Y components of gravity
     int16_t abs_x = abs(avg_accel_values[0]);
     int16_t abs_y = abs(avg_accel_values[1]);
     
-    enum GESTURE_COMMAND detected_gesture = -1;
+    enum GESTURE_COMMAND detected_gesture = NO_GESTURE;
     
-    // Only detect gesture if acceleration exceeds threshold on some axis
-    if (abs_x > GESTURE_THRESHOLD || abs_y > GESTURE_THRESHOLD) {
-        // Determine which axis has the strongest signal
+    // Check if tilted enough in any direction
+    if (abs_x > TILT_THRESHOLD || abs_y > TILT_THRESHOLD) {
+        // Determine which axis has the strongest tilt
         if (abs_y > abs_x) {
             // Y-axis dominant (forward/backward)
             if (avg_accel_values[1] > 0) {
@@ -197,35 +202,37 @@ int compute_direction() {
             }
         }
         
-        if (detected_gesture != -1 && is_new_gesture(detected_gesture)) {
+        if (detected_gesture != NO_GESTURE && is_new_gesture(detected_gesture)) {
             // Display the gesture on the LED matrix
-            display_gesture(detected_gesture);
+            // display_gesture(detected_gesture);
+            // printf("Detected gesture: %d - X:%d Y:%d Z:%d\n", 
+            //       detected_gesture, avg_accel_values[0], avg_accel_values[1], avg_accel_values[2]);
             return detected_gesture;
         }
-    } else if (abs_x < GESTURE_RELEASE && abs_y < GESTURE_RELEASE) {
-        // No significant movement detected, reset gesture state
-        is_new_gesture(-1);
+    } else if (abs_x < TILT_RELEASE && abs_y < TILT_RELEASE) {
+        // Device returned close to level, reset gesture state
+        is_new_gesture(NO_GESTURE);
         
-        // Clear display when no gesture (optional)
-        // display_gesture(-1);
+        // Display 'I' for idle state
+        // load_letter_to_framebuffer(LETTER_I);
     }
     
-    return last_gesture; // Return current ongoing gesture or -1 if none
+    // When no valid gesture is detected, return -1
+    return NO_GESTURE;
 }
-
 // Individual gesture check functions (kept for compatibility)
 int check_fwd() {
-    return (avg_accel_values[1] > GESTURE_THRESHOLD) ? 1 : 0;  // +Y
+    return (avg_accel_values[1] > TILT_THRESHOLD) ? 1 : 0;  // +Y
 }
 
 int check_back() {
-    return (avg_accel_values[1] < -GESTURE_THRESHOLD) ? 1 : 0; // -Y
+    return (avg_accel_values[1] < -TILT_THRESHOLD) ? 1 : 0; // -Y
 }
 
 int check_left() {
-    return (avg_accel_values[0] < -GESTURE_THRESHOLD) ? 1 : 0; // -X
+    return (avg_accel_values[0] < -TILT_THRESHOLD) ? 1 : 0; // -X
 }
 
 int check_right() {
-    return (avg_accel_values[0] > GESTURE_THRESHOLD) ? 1 : 0;  // +X
+    return (avg_accel_values[0] > TILT_THRESHOLD) ? 1 : 0;  // +X
 }

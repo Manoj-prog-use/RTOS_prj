@@ -35,6 +35,3 @@ int main(void)
     osKernelStart();  /* never returns */
     return 0;
 }
-
-
-

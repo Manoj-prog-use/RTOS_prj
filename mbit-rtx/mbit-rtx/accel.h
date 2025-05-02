@@ -9,7 +9,7 @@ int check_fwd();
 int check_left();
 int check_right();
 int check_back();
-int compute_direction();
+enum GESTURE_COMMAND compute_direction();
 void display_gesture(enum GESTURE_COMMAND gesture);
 
 #endif /* ACCEL_H */

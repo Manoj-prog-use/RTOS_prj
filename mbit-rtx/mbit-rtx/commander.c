@@ -3,6 +3,8 @@
 int current_os_time = 0;
 int previousHeartbeatTime = 0;
 int saviour_dispatched = 0;
+osMessageQueueId_t rescueGestureQueueId;
+
 
 void commander_init(void)
 {
@@ -13,9 +15,24 @@ void commander_init(void)
     }
     radio_init(commander_radio_callback);
 
+    /*Initialize the rescue gesture queue*/
+    InitRescueGestureQueue();
+
      
 
 };
+
+void InitRescueGestureQueue(void)
+{
+    rescueGestureQueueId = osMessageQueueNew(50, sizeof(struct RESCUE_GESTURE_COMMAND_PACKET), NULL);
+    if (rescueGestureQueueId == NULL) {
+        printf("Rescue gesture queue creation failed!\n");
+    }
+    else
+    {
+        printf("Rescue gesture queue created successfully!\n");
+    }
+}
 
 
 void CommandSenderThread(void *argument)
@@ -30,14 +47,14 @@ void CommandSenderThread(void *argument)
 
         check_connection_status();
         
-        frame_buffer[4][4] = 1;  // Turn on
+        // frame_buffer[4][4] = 1;  // Turn on
         // 1. Detect current gesture
         enum GESTURE_COMMAND current_gesture = compute_direction();
 
 
 
         // 2. If gesture changed, send new command
-        if (current_gesture != prev_gesture && current_gesture != -1)
+        if (current_gesture != prev_gesture && current_gesture != NO_GESTURE)
         {
                      
          osDelay(200); 
@@ -45,14 +62,21 @@ void CommandSenderThread(void *argument)
             struct GESTURE_COMMAND_PACKET gcp;
             gcp.command = current_gesture;
             gcp.rpm = 3; // Or any speed you want
-
             DispatchCommand(GESTURE, (void *)&gcp);
 
+
+            struct RESCUE_GESTURE_COMMAND_PACKET rgcp;
+            rgcp.command = current_gesture;
+            rgcp.rpm = 3; // Or any speed you want
+            rgcp.seconds_elapsed = 5;
+            osMessageQueuePut(rescueGestureQueueId, &rgcp, 0, 0);
+
+
             
-            prev_gesture = current_gesture;
             
             
         }
+        prev_gesture = current_gesture;
 
         // 3. Wait before checking again
        
@@ -107,14 +131,80 @@ void check_connection_status(void)
     /*Check for heartbeat delay first*/
     if(seconds_elapsed > MAX_HEARTBEAT_DELAY)
     {
-        frame_buffer[4][0] = 1;  // Turn on
+        // frame_buffer[4][0] = 1;  // Turn on
+        
         if(saviour_dispatched == 0)
         {
+            audio_sweep(500,1000,1000);
+            saviour_dispatched = 1;
+            ActivateSaviour();
+            osDelay(1000);
+            SendAllCommandsToSaviour();
+            // TellSaviourToSearch();
+            // osThreadExit();
+            /*Send the rescue gesture commands to the saviour*/
+ 
+
+        }
+    }
+}
+
+void ActivateSaviour(void)
+{
             struct ACTIVATE_COMMAND_PACKET activateCommandPacket;
             activateCommandPacket.device_mode = SAVIOR;
             DispatchActivateCommand(activateCommandPacket);
             saviour_dispatched = 1;
-        }
-    }
+            osDelay(2000);
+};
+
+void SendAllCommandsToSaviour(void)
+{
     
-}
+    printf("%d",osMessageQueueGetCount(rescueGestureQueueId));
+    struct RESCUE_GESTURE_COMMAND_PACKET rgcp;
+    frame_buffer[2][2] = 1;
+    while(osMessageQueueGet(rescueGestureQueueId, &rgcp, NULL, 0) == osOK)
+    {   enum GESTURE_COMMAND command = rgcp.command;
+        if(command != NO_GESTURE)
+        { 
+            // load_letter_to_framebuffer(LETTER_F);
+            // frame_buffer[3][2] = 0;
+            // printf("Command: %d\n", command);
+            // //  DispatchCommand(RESCUE_GESTURE, (void *)&rgcp);
+            if(command == FRONT)
+            {
+                load_letter_to_framebuffer(LETTER_F);
+                printf("F");
+            }
+            // else if(command == RIGHT)
+            // {
+            //     // load_letter_to_framebuffer(LETTER_R);
+            //     printf("R");
+            // }
+            // else if(command == BACK)
+            // {
+            //     // load_letter_to_framebuffer(LETTER_B);
+            //     printf("B");
+            // }
+            // else if(command == LEFT)
+            // {
+            //     // load_letter_to_framebuffer(LETTER_L);
+            //     printf("L");
+            // }
+
+        }
+        osDelay(1000);
+    }
+ 
+    
+
+};
+
+void TellSaviourToSearch()
+{
+    struct SEARCH_BEGIN_COMMAND_PACKET searchBeginCommandPacket;
+    searchBeginCommandPacket.device_mode = SAVIOR;
+    DispatchCommand(SEARCH_BEGIN, (void *)&searchBeginCommandPacket);
+};
+    
