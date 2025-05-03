@@ -3,6 +3,9 @@
 int SAVIOUR_ACTIVE = 0;
 int search_allowed = 0;
 int time_savior_search_started = 0;
+int reached_explorer = 0;  // Flag to indicate if savior has reached explorer
+int relay_mode = 0;       // Flag to indicate if savior is relaying commands
+
 osMessageQueueId_t saviourRescueGestureQueueId;
 
 
@@ -23,25 +26,57 @@ void savior_init(void)
 
 };
 
+// Add this with the other parse functions
+struct GESTURE_COMMAND_PACKET parseGesturePacket(const char buf[], unsigned int n)
+{
+    struct GESTURE_COMMAND_PACKET result;
+    memcpy(&result, buf + 1, sizeof(struct GESTURE_COMMAND_PACKET));
+    return result;
+};
 
 void savior_radio_callback(const char buf[], unsigned int n)
 {
-     if(GetCommandType(buf,n) == ACTIVATE_BOT && SAVIOUR_ACTIVE == 0)
-     {
+    if(GetCommandType(buf,n) == ACTIVATE_BOT && SAVIOUR_ACTIVE == 0)
+    {
         struct ACTIVATE_COMMAND_PACKET activateCommandPacket = parseActivatePacket(buf,n);
         if(activateCommandPacket.device_mode == SAVIOR)
         {
             SAVIOUR_ACTIVE = 1;
         }
-     }
-     else if(GetCommandType(buf,n) == RESCUE_GESTURE && SAVIOUR_ACTIVE == 1)
-     {
-        struct RESCUE_GESTURE_COMMAND_PACKET rgcp = parseRescueGesturePacket(buf,n);
-        osMessageQueuePut(saviourRescueGestureQueueId, &rgcp, 0, 0);
-        frame_buffer[4][2] = 1;
-     }
-     else if(GetCommandType(buf,n) == SEARCH_BEGIN && SAVIOUR_ACTIVE == 1)
-     {
+    }
+    else if(GetCommandType(buf,n) == RESCUE_GESTURE && SAVIOUR_ACTIVE == 1)
+    {
+        if (!relay_mode) {
+            // Still in path-following mode, store in queue
+            struct RESCUE_GESTURE_COMMAND_PACKET rgcp = parseRescueGesturePacket(buf,n);
+            osMessageQueuePut(saviourRescueGestureQueueId, &rgcp, 0, 0);
+            frame_buffer[4][2] = 1;
+        }
+    }
+    else if(GetCommandType(buf,n) == GESTURE && relay_mode)
+    {
+        // In relay mode, forward gesture commands from commander to explorer
+        struct GESTURE_COMMAND_PACKET gcp = parseGesturePacket(buf,n);
+        DispatchCommand(GESTURE, (void *)&gcp);
+        
+        // Visual feedback of relaying
+        switch(gcp.command) {
+            case FRONT:
+                load_letter_to_framebuffer(LETTER_F);
+                break;
+            case BACK:
+                load_letter_to_framebuffer(LETTER_B);
+                break;
+            case LEFT:
+                load_letter_to_framebuffer(LETTER_L);
+                break;
+            case RIGHT:
+                load_letter_to_framebuffer(LETTER_R);
+                break;
+        }
+    }
+    else if(GetCommandType(buf,n) == SEARCH_BEGIN && SAVIOUR_ACTIVE == 1)
+    {
         struct SEARCH_BEGIN_COMMAND_PACKET searchBeginCommandPacket = parseSearchBeginPacket(buf,n);
         if(searchBeginCommandPacket.device_mode == SAVIOR)
         {
@@ -49,8 +84,8 @@ void savior_radio_callback(const char buf[], unsigned int n)
             search_allowed = 1;
             frame_buffer[4][3] = 1;
         }
-     }
-};
+    }
+}
 
 struct ACTIVATE_COMMAND_PACKET parseActivatePacket(const char buf[], unsigned int n)
 {
@@ -88,6 +123,7 @@ void SaviorMainThread(void *argument)
     }
 };
 
+
 void SaviorSearchThread(void *argument)
 {
     frame_buffer[2][2] = 1;
@@ -96,11 +132,13 @@ void SaviorSearchThread(void *argument)
 
     while(1)
     {
-        if(search_allowed == 1)
+        if(search_allowed == 1 && !reached_explorer)
         {
             struct RESCUE_GESTURE_COMMAND_PACKET gcp;
-            while(osMessageQueueGet(saviourRescueGestureQueueId, &gcp, NULL, 0) == osOK)
-            {
+            // Try to get a command from the queue
+            osStatus_t status = osMessageQueueGet(saviourRescueGestureQueueId, &gcp, NULL, 0);
+            
+            if (status == osOK) {
                 if (has_prev) {
                     // Calculate how long to run the previous command
                     int delay = gcp.seconds_elapsed - prev_gcp.seconds_elapsed;
@@ -109,7 +147,7 @@ void SaviorSearchThread(void *argument)
                     motor_off();
                 }
 
-                // Now, start the new command immediately
+                // Execute the new command
                 switch (gcp.command) {
                     case FRONT:
                         load_letter_to_framebuffer(LETTER_F);
@@ -133,12 +171,35 @@ void SaviorSearchThread(void *argument)
                 }
                 prev_gcp = gcp;
                 has_prev = 1;
+            } 
+            else {
+                // Queue is empty - we've reached the end of the path
+                motor_off();
+                reached_explorer = 1;
+                relay_mode = 1;
+                
+                // Visual feedback that we're switching to relay mode
+                load_letter_to_framebuffer(LETTER_A);  // R for Relay
+                
+                // Tell explorer we're ready to relay
+                struct ACTIVATE_COMMAND_PACKET activatePacket;
+                activatePacket.device_mode = SAVIOR;
+                DispatchActivateCommand(activatePacket);
+                
+                printf("Reached explorer, switching to relay mode\n");
             }
-            // After the last command, you may want to turn off the motors after a fixed time or when search ends
-            // motor_off();
         }
+        else if (relay_mode) {
+            // In relay mode, just forward commander's gestures to explorer
+            osDelay(100);  // Small delay to prevent busy waiting
+        }
+        
+        osDelay(100);
     }
 }
+
+
+
 
 void InitSaviourRescueGestureQueue(void)
 {

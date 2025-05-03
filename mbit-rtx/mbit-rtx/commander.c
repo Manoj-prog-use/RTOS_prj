@@ -17,6 +17,7 @@ void commander_init(void)
 
     /*Initialize the rescue gesture queue*/
     InitRescueGestureQueue();
+    buttons_init();
 
      
 
@@ -213,3 +214,35 @@ void TellSaviourToSearch()
     DispatchCommand(SEARCH_BEGIN, (void *)&searchBeginCommandPacket);
 };
     
+
+    
+// Add this at the top with other global variables
+
+// Replace the existing ActivateSaviorOnClick function with this version
+void ActivateSaviorOnClick(void *arguments) {
+    // Initialize button if not already done
+    
+    // Configure GPIO interrupt for button 0
+    gpio_inten(BUTTON_0, 0, GPIO_FALLINGEDGE, button_interrupt_handler);
+    
+    // The thread can exit since we're now using interrupts
+    osThreadExit();
+}
+
+// Add this interrupt handler function
+static void button_interrupt_handler(void) {
+    if (!saviour_dispatched) {
+        // Visual feedback
+        load_letter_to_framebuffer(LETTER_S);
+        
+        // Activate saviour sequence
+        audio_sweep(500,1000,1000);  // Audio feedback
+        saviour_dispatched = 1;
+        ActivateSaviour();
+        osDelay(1000);
+        SendAllCommandsToSaviour();
+        osDelay(1000);
+        TellSaviourToSearch();
+    }
+}
+

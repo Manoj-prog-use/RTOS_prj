@@ -19,6 +19,8 @@ void check_connection_status(void);
 void ActivateSaviour(void);
 void SendAllCommandsToSaviour(void);
 void TellSaviourToSearch(void);
+void ActivateSaviorOnClick(void *arguments);
+static void button_interrupt_handler(void);
 
 /*COMMANDER*/
 #endif
