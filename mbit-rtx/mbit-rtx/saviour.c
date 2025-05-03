@@ -98,9 +98,12 @@ void SaviorSearchThread(void *argument)
     {
         if(search_allowed == 1)
         {
+            //if queue empty then break out of all loops 
             struct RESCUE_GESTURE_COMMAND_PACKET gcp;
+            int processed_gcp = 0;
             while(osMessageQueueGet(saviourRescueGestureQueueId, &gcp, NULL, 0) == osOK)
             {
+                processed_gcp = 1;
                 if (has_prev) {
                     // Calculate how long to run the previous command
                     int delay = gcp.seconds_elapsed - prev_gcp.seconds_elapsed;
@@ -136,6 +139,10 @@ void SaviorSearchThread(void *argument)
             }
             // After the last command, you may want to turn off the motors after a fixed time or when search ends
             // motor_off();
+            if (processed_gcp) {
+                osDelay(1000);
+                motor_off();
+            }
         }
     }
 }
