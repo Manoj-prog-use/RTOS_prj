@@ -105,7 +105,7 @@ void GestureQueueThread(void *argument)
 void ActOnGestureCommand(enum GESTURE_COMMAND gesture, int rpm)
 {
     // Scale rpm (0-5) to PWM speed (0-100)
-    int speed = rpm * 5;
+    int speed = 45;
 
     switch (gesture) {
         case FRONT:
@@ -120,12 +120,12 @@ void ActOnGestureCommand(enum GESTURE_COMMAND gesture, int rpm)
             break;
         case RIGHT:
             // Turn right (left wheel forward, right wheel backward)
-            motor_on(MOTOR_FORWARD, speed, MOTOR_FORWARD, speed);
+            motor_on(MOTOR_FORWARD, 15, MOTOR_FORWARD, 15);
             load_letter_to_framebuffer(LETTER_R);
             break;
         case LEFT:
             // Turn left (left wheel backward, right wheel forward)
-            motor_on(MOTOR_REVERSE, speed, MOTOR_REVERSE, speed);
+            motor_on(MOTOR_REVERSE, 15, MOTOR_REVERSE, 15);
             load_letter_to_framebuffer(LETTER_L);
             break;
         case ROTATE180:

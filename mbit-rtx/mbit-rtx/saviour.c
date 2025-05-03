@@ -116,19 +116,19 @@ void SaviorSearchThread(void *argument)
                 switch (gcp.command) {
                     case FRONT:
                         load_letter_to_framebuffer(LETTER_F);
-                        motor_on(MOTOR_FORWARD, 50, MOTOR_REVERSE, 50);
+                        motor_on(MOTOR_REVERSE, 50, MOTOR_FORWARD, 50);
                         break;
                     case RIGHT:
                         load_letter_to_framebuffer(LETTER_R);
-                        motor_on(MOTOR_FORWARD, 50, MOTOR_FORWARD, 50);
+                        motor_on(MOTOR_REVERSE, 15, MOTOR_REVERSE, 15);
                         break;
                     case BACK:
                         load_letter_to_framebuffer(LETTER_B);
-                        motor_on(MOTOR_REVERSE, 50, MOTOR_FORWARD, 50);
+                        motor_on(MOTOR_FORWARD, 50, MOTOR_REVERSE, 50);
                         break;
                     case LEFT:
                         load_letter_to_framebuffer(LETTER_L);
-                        motor_on(MOTOR_REVERSE, 50, MOTOR_REVERSE, 50);
+                        motor_on(MOTOR_FORWARD, 15, MOTOR_FORWARD, 15);
                         break;
                     default:
                         motor_off();
@@ -140,7 +140,7 @@ void SaviorSearchThread(void *argument)
             // After the last command, you may want to turn off the motors after a fixed time or when search ends
             // motor_off();
             if (processed_gcp) {
-                osDelay(1000);
+                osDelay(6000);
                 motor_off();
             }
         }
@@ -174,19 +174,19 @@ void ActOnRescueGestureThread(void *argument)
                 switch (gcp.command)
                 {
                     case FRONT:
-                        motor_on(MOTOR_FORWARD, 50, MOTOR_REVERSE, 50);
+                        motor_on(MOTOR_REVERSE, 15, MOTOR_FORWARD, 15);
                         load_letter_to_framebuffer(LETTER_F);
                         break;
                     case BACK:
-                        motor_on(MOTOR_REVERSE, 50, MOTOR_FORWARD, 50);
+                        motor_on(MOTOR_FORWARD, 15, MOTOR_REVERSE, 15);
                         load_letter_to_framebuffer(LETTER_B);
                         break;
                     case RIGHT:
-                        motor_on(MOTOR_FORWARD, 50, MOTOR_FORWARD, 50);
+                        motor_on(MOTOR_REVERSE, 5, MOTOR_REVERSE, 5);
                         load_letter_to_framebuffer(LETTER_R);
                         break;
                     case LEFT:
-                        motor_on(MOTOR_REVERSE, 50, MOTOR_REVERSE, 50);
+                        motor_on(MOTOR_FORWARD, 5, MOTOR_FORWARD, 5);
                         load_letter_to_framebuffer(LETTER_L);
                         break;
                     default:
